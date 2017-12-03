@@ -106,7 +106,7 @@ names   db  'UNKNOWN'	; 00
 regs	dw 	'AL','CL','DL','BL','AH','CH','DH','BH'
 regs2	dw 	'AX','CX','DX','BX','SP','BP','SI','DI'
 
-mem		db	'BX+SI','BS+DI','BP+SI','BP+DI'
+mem		db	'BX+SI','BS+DI','BP+SI','BP+DI',0h,0h
 mem2	dw	0h,0h,0h,0h,'SI','DI','BP','BX'
 
 regsS   dw	'ES'	; 0
@@ -115,9 +115,11 @@ regsS   dw	'ES'	; 0
 		dw	'DS'	; 3
 
 farTxt 	db 'far '
+bptr	db 'byte ptr '
+wptr	db 'word ptr '
 
 ; Bits composition
-; Xreg scvw
+; sreg scvw
 ; sc - subcode, specifies which block of names to look at for rMWN command
 
 ; Read functions
@@ -138,14 +140,16 @@ wIML equ 15h	; Write MSB LSB
 wAML equ 16h	; Write [AMSB ALSB]
 wIPO equ 17h	; Write IP+offset
 wSEG equ 18h	; Write SR
+wPRM equ 19h	; Write size ptr r/m
 
 ; Special functions
 sPRE equ 20h	; Set the prefix for next command
 sEXP equ 21h	; Write sign-extended LSB
-sSPC equ 22h	; reg = 0: write 1; reg = 1: write AL; reg = 2: write AX; reg = 3: write 3; reg = 4: write "far"
+sSPC equ 22h	; reg = 0: write 1; reg = 1: write AL; reg = 2: write AX; reg = 3: write 3; reg = 4: write "far"; reg = 5: write CL
 sESC equ 23h	; Read next command byte as yyy and then write hex("reg yyy")
 sIAM equ 24h	; Write MSB LSB:AMSB ALSB
 sEXT equ 25h	; Execute extended function
+sIPI equ 26h	; Write IP+MSB LSB
 
 outOffset equ 40h
 namOffset equ 58h
@@ -155,14 +159,14 @@ emptySpace 	db 38h DUP(' ')
 			db 0Ah, 0Dh
 
 functions 	dw    0h, frMWR, frMWN, frBIT, frOFF, frILM, frALM,    0h,    0h,0h,0h,0h,0h,0h,0h,0h
-			dw fwROM, fwREG, fwNAM, fwCOM, fwACC, fwIML, fwAML, fwIPO, fwSEG,0h,0h,0h,0h,0h,0h,0h
-			dw fsPRE, fsEXP, fsSPC, fsESC, fsIAM, fsEXT,    0h,    0h,0h,0h,0h,0h,0h,0h,0h
+			dw fwROM, fwREG, fwNAM, fwCOM, fwACC, fwIML, fwAML, fwIPO, fwSEG, fwPRM,0h,0h,0h,0h,0h,0h
+			dw fsPRE, fsEXP, fsSPC, fsESC, fsIAM, fsEXT, fsIPI,    0h,0h,0h,0h,0h,0h,0h,0h
 
 ;               000  001  010  011  100  101  110  111
-subNames 	db	19h, 13h, 07h, 07h, 26h, 26h, 44h, 00h	; 0xFE - 0xFF
-			db	5Fh, 00h, 3Fh, 3Dh, 3Ch, 17h, 14h, 16h	; 0xF6 - 0xF7
-			db	4Ch, 4Dh, 46h, 47h, 57h, 58h, 00h, 4Fh	; 0xD0 - 0xD3
-			db	05h, 40h, 04h, 50h, 06h, 5Eh, 63h, 0Dh	; 0x80 - 0x83
+subNames 	db	1Bh, 14h, 08h, 08h, 25h, 25h, 46h, 00h	; 0xFE - 0xFF
+			db	62h, 00h, 41h, 3Fh, 3Eh, 19h, 15h, 18h	; 0xF6 - 0xF7
+			db	4Fh, 50h, 48h, 49h, 5Ah, 5Bh, 00h, 52h	; 0xD0 - 0xD3
+			db	06h, 42h, 05h, 53h, 07h, 61h, 66h, 0Eh	; 0x80 - 0x83
 
 
 ;                                                           Hex     Com       Args          Size
@@ -227,7 +231,7 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 		db	66h, rBIT,001h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; 33	XOR		reg, r/m		Word
 		db	66h, rBIT,000h,rILM,wNAM,wACC,wCOM,wIML,  0h,0	; 34	XOR		AL, LSB			Byte
 		db	66h, rBIT,001h,rILM,wNAM,wACC,wCOM,wIML,  0h,0	; 35	XOR		AX, MSB LSB		Word
-		db	00h, rBIT,002h,sPRE,  0h,  0h,  0h,  0h,  0h,0	; 36	Prefix	SS
+		db	00h, rBIT,020h,sPRE,  0h,  0h,  0h,  0h,  0h,0	; 36	Prefix	SS
 		db	01h, wNAM,000h,  0h,  0h,  0h,  0h,  0h,  0h,0	; 37	AAA
 
 		db	0Eh, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 38	CMP		r/m, reg		Byte
@@ -311,10 +315,10 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 		db	29h, rOFF,wNAM,wIPO,  0h,  0h,  0h,  0h,  0h,0	; 7E	JNG		IP+offset
 		db	23h, rOFF,wNAM,wIPO,  0h,  0h,  0h,  0h,  0h,0	; 7F	JG		IP+offset
 
-		db	00h, rBIT,00Ch,rMWN,rILM,wNAM,wROM,wCOM,wIML,0	; 80	Comm depends on code	Byte
-		db	00h, rBIT,00Dh,rMWN,rILM,wNAM,wROM,wCOM,wIML,0	; 81	Comm depends on code	Word
-		db	00h, rBIT,00Ch,rMWN,rILM,wNAM,wROM,wCOM,wIML,0	; 82	Comm depends on code	Byte
-		db	00h, rBIT,00Dh,rMWN,rILM,wNAM,wROM,wCOM,sEXP,0	; 83	Comm depends on code	Word
+		db	00h, rBIT,00Ch,rMWN,rILM,wNAM,wPRM,wCOM,wIML,0	; 80	Comm depends on code	Byte
+		db	00h, rBIT,00Dh,rMWN,rILM,wNAM,wPRM,wCOM,wIML,0	; 81	Comm depends on code	Word
+		db	00h, rBIT,00Ch,rMWN,rILM,wNAM,wPRM,wCOM,wIML,0	; 82	Comm depends on code	Byte
+		db	00h, rBIT,08Dh,rMWN,rILM,wNAM,wPRM,wCOM,sEXP,0	; 83	Comm depends on code	Word
 		db	62h, rBIT,000h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; 84	TEST	reg, r/m		Byte
 		db	62h, rBIT,001h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; 85	TEST	reg, r/m		Word
 		db	64h, rBIT,000h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; 86	XCHG	reg, r/m		Byte
@@ -324,9 +328,9 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 		db	3Bh, rBIT,001h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 89	MOV		r/m, reg		Word
 		db	3Bh, rBIT,000h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; 8A	MOV		reg, r/m		Byte
 		db	3Bh, rBIT,001h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; 8B	MOV		reg, r/m		Word
-		db	3Bh, rMWR,wNAM,wROM,wCOM,wSEG,  0h,  0h,  0h,0	; 8C	MOV		r/m, SEG
+		db	3Bh, rBIT,001h,rMWR,wNAM,wROM,wCOM,wSEG,  0h,0	; 8C	MOV		r/m, SEG
 		db	33h, rMWR,wNAM,wREG,wCOM,wROM,  0h,  0h,  0h,0	; 8D	LEA		reg, r/m
-		db	3Bh, rMWR,wNAM,wSEG,wCOM,wROM,  0h,  0h,  0h,0 ; 8E	MOV		SEG, r/m
+		db	3Bh, rMWR,wNAM,wSEG,wCOM,wROM,  0h,  0h,  0h,0 	; 8E	MOV		SEG, r/m
 		db	44h, rMWR,wNAM,wROM,  0h,  0h,  0h,  0h,  0h,0	; 8F	POP		r/m
 
 		db	40h, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; 90	NOP
@@ -389,8 +393,8 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 		db	4Ch, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; C3	RET
 		db	34h, rBIT,001h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; C4	LES		reg, r/m
 		db	32h, rBIT,001h,rMWR,wNAM,wREG,wCOM,wROM,  0h,0	; C5	LDS		reg, r/m
-		db	3Bh, rBIT,000h,rMWR,rILM,wNAM,wROM,wCOM,wIML,0	; C6	MOV		r/m, LSB
-		db	3Bh, rBIT,001h,rMWR,rILM,wNAM,wROM,wCOM,wIML,0	; C7	MOV		r/m, MSB LSB
+		db	3Bh, rBIT,000h,rMWR,rILM,wNAM,wPRM,wCOM,wIML,0	; C6	MOV		r/m, LSB
+		db	3Bh, rBIT,001h,rMWR,rILM,wNAM,wPRM,wCOM,wIML,0	; C7	MOV		r/m, MSB LSB
 
 		db	00h, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; C8	NO COMMAND
 		db	00h, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; C9	NO COMMAND
@@ -403,8 +407,8 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 
 		db	00h, rBIT,008h,rMWN,wNAM,wROM,wCOM,sSPC,  0h,0	; D0	Comm depends on code	Byte
 		db	00h, rBIT,009h,rMWN,wNAM,wROM,wCOM,sSPC,  0h,0	; D1	Comm depends on code	Word
-		db	00h, rBIT,008h,rMWN,wNAM,wROM,wCOM,wACC,  0h,0	; D2	Comm depends on code	Byte
-		db	00h, rBIT,019h,rMWN,wNAM,wROM,wCOM,sSPC,  0h,0	; D3	Comm depends on code	Word
+		db	00h, rBIT,058h,rMWN,wNAM,wROM,wCOM,sSPC,  0h,0	; D2	Comm depends on code	Byte
+		db	00h, rBIT,059h,rMWN,wNAM,wROM,wCOM,sSPC,  0h,0	; D3	Comm depends on code	Word
 		db	03h, rOFF,wNAM,  0h,  0h,  0h,  0h,  0h,  0h,0	; D4	AAM
 		db	02h, rOFF,wNAM,  0h,  0h,  0h,  0h,  0h,  0h,0	; D5	AAD
 		db	00h, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; D6	NO COMMAND
@@ -428,8 +432,8 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 		db	43h, rBIT,000h,rILM,wNAM,wACC,wCOM,wIML,  0h,0	; E6	OUT		AL, port
 		db	43h, rBIT,020h,rILM,wNAM,sSPC,wCOM,wIML,  0h,0	; E7	OUT		AX, port
 
-		db	08h, rBIT,001h,rILM,wNAM,wIML,  0h,  0h,  0h,0	; E8	CALL 	MSB LSB
-		db	08h, rBIT,001h,rILM,wNAM,wIML,  0h,  0h,  0h,0	; E9	CALL 	MSB LSB
+		db	08h, rBIT,001h,rILM,wNAM,sIPI,  0h,  0h,  0h,0	; E8	CALL 	MSB LSB
+		db	25h, rBIT,001h,rILM,wNAM,sIPI,  0h,  0h,  0h,0	; E9	JMP 	MSB LSB
 		db	25h, rBIT,001h,rALM,rILM,wNAM,sIAM,  0h,  0h,0	; EA	JMP		MSB LSB:AMSB ALSB
 		db	25h, rOFF,wNAM,wIPO,  0h,  0h,  0h,  0h,  0h,0	; EB	JMP		IP+offset
 		db	1Ah, rBIT,000h,wNAM,wACC,wCOM,rBIT,021h,wREG,0	; EC	IN 		AL, DX
@@ -456,16 +460,7 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 		db	00h, rBIT,041h,rMWN,sEXT,  0h,  0h,  0h,  0h,0	; FF	Comm depends on code		Word
 
 
-extCodes db rILM,wNAM,wROM,wCOM,wIML,0	; 000
-		db	  0h,  0h,  0h,  0h,  0h,0	; 001
-		db	wNAM,wROM,  0h,  0h,  0h,0	; 010
-		db	wNAM,wROM,  0h,  0h,  0h,0	; 011
-		db	wNAM,wROM,  0h,  0h,  0h,0	; 100
-		db	wNAM,wROM,  0h,  0h,  0h,0	; 101
-		db	wNAM,wROM,  0h,  0h,  0h,0	; 110
-		db	wNAM,wROM,  0h,  0h,  0h,0	; 111
-
-		db	wNAM,wROM,  0h,  0h,  0h,0	; 000
+extCodes db	wNAM,wROM,  0h,  0h,  0h,0	; 000
 		db	wNAM,wROM,  0h,  0h,  0h,0	; 001
 		db	wNAM,wROM,  0h,  0h,  0h,0	; 010
 		db	wNAM,sSPC,wROM,  0h,  0h,0	; 011
@@ -473,3 +468,12 @@ extCodes db rILM,wNAM,wROM,wCOM,wIML,0	; 000
 		db	wNAM,sSPC,wROM,  0h,  0h,0	; 101
 		db	wNAM,wROM,  0h,  0h,  0h,0	; 110
 		db	  0h,  0h,  0h,  0h,  0h,0	; 111
+
+		db  rILM,wNAM,wPRM,wCOM,wIML,0	; 000
+		db	  0h,  0h,  0h,  0h,  0h,0	; 001
+		db	wNAM,wROM,  0h,  0h,  0h,0	; 010
+		db	wNAM,wROM,  0h,  0h,  0h,0	; 011
+		db	wNAM,wROM,  0h,  0h,  0h,0	; 100
+		db	wNAM,wROM,  0h,  0h,  0h,0	; 101
+		db	wNAM,wROM,  0h,  0h,  0h,0	; 110
+		db	wNAM,wROM,  0h,  0h,  0h,0	; 111
