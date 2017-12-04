@@ -38,6 +38,7 @@ imm 	dw 0
 adr 	dw 0
 wrptr	db 0
 signed	db 0
+nam		db 0
 pref    db 4h
 memAdd	dw 100h
 
@@ -631,8 +632,11 @@ fwREG2 PROC			; Write reg based on reg number stored in BL, subfunction of fwROM
 fwREG2 ENDP
 
 fwNAM PROC			; Write command name
-    ;INT 3h
+    CMP		byte ptr [nam], 0h
+	JNE		_notName
     MOV     DI, namOffset           ; Move output buffer pointer to name location
+	_notName:
+	MOV		byte ptr [nam], 0h
     PUSH    SI                      ; Save SI
     MOV     BH, 0h
     MOV     BL, [nCode]             ; Load nameCode to BX
@@ -781,11 +785,11 @@ fsSPC PROC			; Write text/symbol based on value of num
     RET
 fsSPC ENDP
 
-fsESC PROC			; Read next byte as yyy and write hex(reg yyy)
+fsESC PROC			; Read next byte as yyy and write hex(yyy reg)
     INC     BP
     MOV     AL, DS:[BP]
     MOV     BL, [reg]
-    ROL     BL, 3h
+    ROL     AL, 3h
     ADD     AL, BL
     CALL    writeByte
     RET
@@ -833,5 +837,23 @@ fsIPI PROC			; Write IP+offset
     CALL    writeByte
     RET
 fsIPI ENDP
+
+fsREP PROC
+	MOV		byte ptr [nam], 1h
+	; Read command number
+	MOV		AH, 0h
+	MOV 	AL, byte ptr [offst]
+	MOV     BL, 0Ah
+	MUL     BL
+	MOV     BX, AX
+	PUSH	BP
+	LEA     BP, [codes + BX]
+
+	; Read command name
+	MOV     AL, DS:[BP]
+	MOV     [nCode], AL
+	POP		BP
+	RET
+fsREP ENDP
 
 end

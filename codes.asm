@@ -106,7 +106,7 @@ names   db  'UNKNOWN'	; 00
 regs	dw 	'AL','CL','DL','BL','AH','CH','DH','BH'
 regs2	dw 	'AX','CX','DX','BX','SP','BP','SI','DI'
 
-mem		db	'BX+SI','BS+DI','BP+SI','BP+DI',0h,0h
+mem		db	'BX+SI','BX+DI','BP+SI','BP+DI',0h,0h
 mem2	dw	0h,0h,0h,0h,'SI','DI','BP','BX'
 
 regsS   dw	'ES'	; 0
@@ -150,6 +150,7 @@ sESC equ 23h	; Read next command byte as yyy and then write hex("reg yyy")
 sIAM equ 24h	; Write MSB LSB:AMSB ALSB
 sEXT equ 25h	; Execute extended function
 sIPI equ 26h	; Write IP+MSB LSB
+sREP equ 27h	; Step into different command using offset as address
 
 outOffset equ 40h
 namOffset equ 58h
@@ -160,7 +161,7 @@ emptySpace 	db 38h DUP(' ')
 
 functions 	dw    0h, frMWR, frMWN, frBIT, frOFF, frILM, frALM,    0h,    0h,0h,0h,0h,0h,0h,0h,0h
 			dw fwROM, fwREG, fwNAM, fwCOM, fwACC, fwIML, fwAML, fwIPO, fwSEG, fwPRM,0h,0h,0h,0h,0h,0h
-			dw fsPRE, fsEXP, fsSPC, fsESC, fsIAM, fsEXT, fsIPI,    0h,0h,0h,0h,0h,0h,0h,0h
+			dw fsPRE, fsEXP, fsSPC, fsESC, fsIAM, fsEXT, fsIPI, fsREP,0h,0h,0h,0h,0h,0h,0h
 
 ;               000  001  010  011  100  101  110  111
 subNames 	db	1Bh, 14h, 08h, 08h, 25h, 25h, 46h, 00h	; 0xFE - 0xFF
@@ -443,8 +444,8 @@ codes   db 	06h, rBIT,000h,rMWR,wNAM,wROM,wCOM,wREG,  0h,0	; 00	ADD 	r/m, reg		B
 
 		db	35h, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; F0	LOCK
 		db	00h, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; F1	NO COMMAND
-		db	4Bh, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; F2	REPNE
-		db	4Ah, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; F3	REP
+		db	4Bh, rOFF,wNAM,sREP,wNAM,  0h,  0h,  0h,  0h,0	; F2	REPNE
+		db	4Ah, rOFF,wNAM,sREP,wNAM,  0h,  0h,  0h,  0h,0	; F3	REP
 		db	17h, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; F4	HLT
 		db	0Dh, wNAM,  0h,  0h,  0h,  0h,  0h,  0h,  0h,0	; F5	CMC
 		db	00h, rBIT,004h,rMWN,sEXT,  0h,  0h,  0h,  0h,0	; F6	Comm depends on code	Byte
