@@ -10,8 +10,8 @@ Both codes.asm and disasm.asm are required
 Compiler used is TASM
 
 Commands:
-tasm disasm.asm
-tlink disasm.obj
+  tasm disasm.asm
+  tlink disasm.obj
 
 ## Usage
 disasm.exe InputComFile.COM OutputAsmFile.ASM
